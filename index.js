@@ -16,6 +16,7 @@ const customInspectSymbol =
     : null
 
 const decoderUTF8 = new TextDecoder('utf8')
+const encoderUTF8 = new TextEncoder('utf8')
 
 exports.Buffer = Buffer
 exports.SlowBuffer = SlowBuffer
@@ -238,6 +239,12 @@ function fromString (string, encoding) {
 
   if (!Buffer.isEncoding(encoding)) {
     throw new TypeError('Unknown encoding: ' + encoding)
+  }
+
+  if (encoding === 'utf8' || encoding === 'utf-8') {
+    const bytes = utf8ToBytes(string)
+    Object.setPrototypeOf(bytes, Buffer.prototype)
+    return bytes
   }
 
   const length = byteLength(string, encoding) | 0
@@ -606,7 +613,10 @@ Buffer.prototype.swap64 = function swap64 () {
 Buffer.prototype.toString = function toString () {
   const length = this.length
   if (length === 0) return ''
-  if (arguments.length === 0) return utf8Slice(this, 0, length)
+  if (
+    (arguments.length === 0) ||
+    (arguments.length === 1 && (arguments[0] === 'utf8' || arguments[0] === 'utf-8'))
+  ) return utf8Slice(this, 0, length)
   return slowToString.apply(this, arguments)
 }
 
@@ -1861,7 +1871,10 @@ function base64clean (str) {
 }
 
 function utf8ToBytes (string, units) {
-  units = units || Infinity
+  if (!units) {
+    return encoderUTF8.encode(string)
+  }
+
   let codePoint
   const length = string.length
   let leadSurrogate = null
